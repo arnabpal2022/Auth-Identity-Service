@@ -1,0 +1,20 @@
+meta {
+  name: DemoAuthTest
+  type: http
+  seq: 6
+}
+
+get {
+  url: http://localhost:8080/api/v1/demo
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzZWN1cml0eV9zdGFtcCI6IjVkOWU2MDA4LWMzOTgtNDVmOC1hOWEyLTZmZjM5NzNmYjE2ZSIsInN1YiI6IjRjZTA0NDY0LTk0YmEtNDYzYS05MjM0LWVjMDA0ZDdmMmMyYSIsImlhdCI6MTc2OTg3NjIwMSwiZXhwIjoxNzY5ODc3MTAxfQ.IPlYBICRpe_lFeEDmBu62-8DFaTggKDMD20eA1E9J5I
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
