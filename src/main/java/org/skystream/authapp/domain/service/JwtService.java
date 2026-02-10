@@ -74,7 +74,7 @@ public class JwtService {
 
     public boolean isTokenValid(String token, String expectedAction) {
         try {
-            final String action = extractClaim(token, claims -> claims.get("action", String.class));
+            final String action = extractClaim(token, claims -> claims.get("email", String.class));
             return expectedAction.equals(action) && !isTokenExpired(token);
         } catch (JwtException e) {
             // Signature failure or malformed token
