@@ -16,6 +16,7 @@ import org.skystream.authapp.domain.repository.RoleRepository;
 import org.skystream.authapp.domain.repository.UserRepository;
 import org.skystream.authapp.domain.service.JwtService;
 import org.skystream.authapp.domain.service.RefreshTokenService;
+import org.skystream.authapp.domain.service.TokenBlacklistService;
 import org.skystream.authapp.domain.types.AccountStatus;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,6 +24,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.Set;
 
 @Service
@@ -37,6 +39,7 @@ public class AuthService {
     private final ApplicationEventPublisher eventPublisher;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Transactional
     public void registerPassenger(RegisterRequest request) {
@@ -169,5 +172,26 @@ public class AuthService {
                 .tokenType("Bearer")
                 .expiresIn(900) // 15 minutes in seconds (informational for frontend)
                 .build();
+    }
+
+    public void logout(String authHeader, String refreshToken) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String jwt = authHeader.substring(7);
+
+            Date expiresAt = jwtService.extractExpiration(jwt);
+            long ttl = expiresAt.getTime() - System.currentTimeMillis();
+
+            if (ttl > 0) {
+                tokenBlacklistService.blacklistToken(jwt, ttl);
+            }
+        }
+
+        if (refreshToken != null) {
+            refreshTokenService.revokeRefreshToken(refreshToken);
+        }
+    }
+
+    public String refreshToken(String requestRefreshToken){
+        return refreshTokenService.rotateRefreshToken(requestRefreshToken);
     }
 }

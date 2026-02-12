@@ -52,10 +52,24 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<AuthenticationResponse> refreshToken(@RequestBody Map<String, String> request) {
-        String requestRefreshToken = request.get("refreshToken");
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @RequestHeader(org.springframework.http.HttpHeaders.AUTHORIZATION) String authHeader,
+            @RequestBody(required = false) java.util.Map<String, String> request
+    ) {
+        String refreshToken = (request != null) ? request.get("refreshToken") : null;
+        authService.logout(authHeader, refreshToken);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<String> refreshToken(@RequestBody Map<String, String> request) {
+        String requestRefreshToken = request.get("refreshToken");
+
+        if(requestRefreshToken==null || requestRefreshToken.isBlank()){
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(authService.refreshToken(requestRefreshToken));
     }
 
 }

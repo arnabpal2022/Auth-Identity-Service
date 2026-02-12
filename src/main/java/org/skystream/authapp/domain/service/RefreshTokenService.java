@@ -9,6 +9,9 @@ import org.skystream.authapp.domain.repository.RefreshTokenRepository;
 import org.skystream.authapp.domain.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.TransactionDefinition;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -28,6 +31,7 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final PlatformTransactionManager transactionManager;
 
     @Transactional
     public String createRefreshToken(UUID userId) {
@@ -54,32 +58,28 @@ public class RefreshTokenService {
 
     @Transactional
     public String rotateRefreshToken(String rawOldToken) {
-        // Hash the incoming raw token so we can look it up
         String hashedToken = hashToken(rawOldToken);
-
-        // Find the token in the DB
         RefreshTokenEntity oldToken = refreshTokenRepository.findByTokenHash(hashedToken)
                 .orElseThrow(() -> new RuntimeException("Invalid Refresh Token"));
 
-
-        // NOTE: CRITICAL SECURITY CHECK
-        // If a malicious actor steals a refresh token... invalidate the whole family
         if (oldToken.isRevoked()) {
-            log.error("SECURITY ALERT: Reuse of revoked token detected. Family ID: {}", oldToken.getFamilyId());
-            log.error("Action: Invalidating all sessions for this family.");
+            log.error("SECURITY EVENT: Reuse detection triggered for Family ID: {}", oldToken.getFamilyId());
 
-            // The Nuclear Option: Kill the entire family
-            revokeFamily(oldToken.getFamilyId());
+            TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+            transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-            throw new RuntimeException("Security Breach: Token reuse detected. Session terminated.");
+            transactionTemplate.execute(status -> {
+                refreshTokenRepository.revokeAllByFamilyId(oldToken.getFamilyId());
+                return null;
+            });
+
+            throw new SecurityException("Refresh token was already used. Security Alert triggered.");
         }
 
-        // Expiration Check
-        if (!oldToken.isValid()) {
-            throw new RuntimeException("Refresh token expired");
+        if (oldToken.getExpiresAt().isBefore(Instant.now())) {
+            throw new IllegalArgumentException("Refresh token expired");
         }
 
-        // Mark the Old Token as Used
         oldToken.setRevoked(true);
         refreshTokenRepository.save(oldToken);
 
@@ -100,16 +100,35 @@ public class RefreshTokenService {
     }
 
     @Transactional
+    public void revokeRefreshToken(String rawToken) {
+        if (rawToken == null) return;
+
+        String hashedToken = hashToken(rawToken);
+
+        refreshTokenRepository.findByTokenHash(hashedToken)
+                .ifPresent(token -> {
+                    token.setRevoked(true);
+                    refreshTokenRepository.save(token);
+                    log.info("Refresh token revoked for user: {}", token.getUser().getEmail());
+                });
+    }
+
+    @Transactional
     public void revokeUserSessions(UserEntity user) {
         refreshTokenRepository.revokeAllByUser(user);
     }
 
-    private void revokeFamily(UUID familyId) {
-        refreshTokenRepository.findByFamilyId(familyId)
-                .forEach(token -> {
-                    token.setRevoked(true);
-                    refreshTokenRepository.save(token);
-                });
+//    private void revokeFamily(UUID familyId) {
+//        refreshTokenRepository.findByFamilyId(familyId)
+//                .forEach(token -> {
+//                    token.setRevoked(true);
+//                    refreshTokenRepository.save(token);
+//                });
+//    }
+
+    private void revokeTokenFamily(UUID familyId) {
+        log.error("Executing Family Revocation for ID: {}", familyId);
+        refreshTokenRepository.revokeAllByFamilyId(familyId);
     }
 
     private String hashToken(String rawToken) {

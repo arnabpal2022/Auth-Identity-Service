@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.skystream.authapp.domain.entity.UserEntity;
 import org.skystream.authapp.domain.service.JwtService;
+import org.skystream.authapp.domain.service.TokenBlacklistService;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(
@@ -45,7 +47,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // Extract Token and Claims
-        jwt = authHeader.substring(7); // Remove "Bearer "
+        jwt = authHeader.substring(7);
+
+        // Blacklist Check: If the token is blacklisted, we reject it immediately.
+        if (tokenBlacklistService.isBlacklisted(jwt)) {
+            log.warn("Blocked request with Blacklisted Token: {}", jwt.substring(0, 10) + "...");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token is logged out (Blacklisted)");
+            return;
+        }
 
         try {
             userEmail = jwtService.extractEmail(jwt);
@@ -73,7 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 // Standard Validation
-                if (jwtService.isTokenValid(jwt, userDetails.getUsername())) {
+                if (jwtService.isAccessTokenValid(jwt, userDetails.getUsername())) {
 
                     // Create the Auth Token for Spring Context
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

@@ -26,4 +26,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
 
     @Query("SELECT r FROM RefreshTokenEntity r WHERE r.familyId = :familyId AND r.isRevoked = false")
     List<RefreshTokenEntity> findActiveByFamilyId(@Param("familyId") UUID familyId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE RefreshTokenEntity t SET t.isRevoked = true WHERE t.familyId = :familyId")
+    void revokeAllByFamilyId(@Param("familyId") UUID familyId);
 }

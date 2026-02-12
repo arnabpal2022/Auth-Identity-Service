@@ -74,6 +74,16 @@ public class JwtService {
 
     public boolean isTokenValid(String token, String expectedAction) {
         try {
+            final String action = extractClaim(token, claims -> claims.get("action", String.class));
+            return expectedAction.equals(action) && !isTokenExpired(token);
+        } catch (JwtException e) {
+            // Signature failure or malformed token
+            return false;
+        }
+    }
+
+    public boolean isAccessTokenValid(String token, String expectedAction) {
+        try {
             final String action = extractClaim(token, claims -> claims.get("email", String.class));
             return expectedAction.equals(action) && !isTokenExpired(token);
         } catch (JwtException e) {
@@ -98,7 +108,7 @@ public class JwtService {
         return extractExpiration(token).before(new Date());
     }
 
-    private Date extractExpiration(String token) {
+    public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 

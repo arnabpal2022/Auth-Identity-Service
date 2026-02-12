@@ -1,0 +1,26 @@
+meta {
+  name: LogoutRequest
+  type: http
+  seq: 7
+}
+
+post {
+  url: http://localhost:8080/api/v1/auth/logout
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzZWN1cml0eV9zdGFtcCI6ImNjYTM3NjYzLWQ2ZjktNDkxNy04YWQyLTkwM2FlZTZmMzkyMSIsImVtYWlsIjoiY2FwdGFpbi5kb2VAYWlybGluZS5jb20iLCJzdWIiOiI4ZjVkMDc5OC1mODNlLTRlZWQtYWYyNS1mNWJiZDA5NWQ2MDQiLCJpYXQiOjE3NzA5MDU5NTYsImV4cCI6MTc3MDkwNjg1Nn0.KbKJGHYUC6321jZ-g84oyginJsbvvEC_rFAgcAAhT-A
+}
+
+body:json {
+  {
+    "refreshToken" : "52831600-bdfc-42b3-8b60-8646231fadda"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
